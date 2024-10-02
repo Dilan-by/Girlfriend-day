@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Girlfriend Day Design Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=Brush+Script+MT&family=Great+Vibes&family=Pacifico&family=Sacramento&family=Cookie&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f9e0e7;
+            color: #333;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            margin: 20px 0;
+            color: #d8345f;
+            animation: fadeIn 2s ease-in-out;
+        }
+        #canvas {
+            border: 2px solid #d8345f;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            margin: 20px auto;
+            cursor: crosshair;
+        }
+        .toolbar {
+            margin: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #d8345f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #b02249;
+            transform: translateY(-2px);
+        }
+        input[type="file"], select {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #d8345f;
+            outline: none;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:hover, select:hover {
+            border-color: #b02249;
+        }
+        .color-picker {
+            margin-top: 20px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+<h1>Create Your Girlfriend Day Design</h1>
+
+<div class="toolbar">
+    <input type="file" id="imageLoader" accept="image/*" />
+    <input type="file" id="additionalImageLoader" accept="image/*" />
+    <select id="fontSelector">
+        <option value="Brush Script MT">Brush Script MT</option>
+        <option value="Great Vibes">Great Vibes</option>
+        <option value="Pacifico">Pacifico</option>
+        <option value="Sacramento">Sacramento</option>
+        <option value="Cookie">Cookie</option>
+    </select>
+    <select id="fontSizeSelector">
+        <option value="20">20</option>
+        <option value="30">30</option>
+        <option value="40">40</option>
+        <option value="50">50</option>
+    </select>
+    <select id="textWeightSelector">
+        <option value="normal">Normal</option>
+        <option value="bold">Bold</option>
+        <option value="italic">Italic</option>
+    </select>
+    <button class="btn" onclick="addText()">Add Text</button>
+    <button class="btn" onclick="removeSelected()">Remove Selected</button>
+    <button class="btn" onclick="applyFilter()">Apply Filter</button>
+    <button class="btn" onclick="undo()">Undo</button>
+    <button class="btn" onclick="redo()">Redo</button>
+    <button class="btn" onclick="download()">Download</button>
+    <input type="color" id="colorPicker" class="color-picker" value="#d8345f" onchange="changeTextColor(this.value)">
+    <select id="themeSelector">
+        <option value="#f9e0e7">Light Pink</option>
+        <option value="#333">Dark Mode</option>
+    </select>
+    <button class="btn" onclick="applyTheme()">Change Theme</button>
+</div>
+
+<canvas id="canvas" width="800" height="600"></canvas>
+
+<!-- Tutorial Section -->
+<div id="tutorial">
+    <h2>How to Use</h2>
+    <p>1. Upload an image or select a sticker.</p>
+    <p>2. Choose your text style and add a message.</p>
+    <p>3. Customize with colors, filters, and more.</p>
+    <p>4. Share your design or download it!</p>
+</div>
+
+<script>
+    var canvas = new fabric.Canvas('canvas');
+    var state = [];  // For undo/redo
+    var mods = 0;
+
+    // Function to add text
+    function addText() {
+        var text = new fabric.Textbox('Your Message Here', {
+            left: 100,
+            top: 100,
+            fontSize: parseInt(document.getElementById('fontSizeSelector').value),
+            fill: document.getElementById('colorPicker').value,
+            editable: true,
+            textAlign: 'center',
+            fontFamily: document.getElementById('fontSelector').value,
+            fontWeight: document.getElementById('textWeightSelector').value
+        });
+        canvas.add(text);
+        canvas.setActiveObject(text);
+        saveState();
+    }
+
+    // Load and add image
+    document.getElementById('imageLoader').addEventListener('change', function(e) {
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            fabric.Image.fromURL(event.target.result, function(img) {
+                img.set({
+                    left: 0,
+                    top: 0,
+                    angle: 0,
+                    padding: 10,
+                    cornersize: 10
+                });
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                saveState();
+            });
+        }
+        reader.readAsDataURL(e.target.files[0]);
+    });
+
+    // Apply filter (Example: Sepia)
+    function applyFilter() {
+        var obj = canvas.getActiveObject();
+        if (obj && obj.filters) {
+            obj.filters.push(new fabric.Image.filters.Sepia());
+            obj.applyFilters();
+            canvas.renderAll();
+            saveState();
+        }
+    }
+
+    // Change text color
+    function changeTextColor(color) {
+        var activeObject = canvas.getActiveObject();
+        if (activeObject && activeObject.type === 'textbox') {
+            activeObject.set('fill', color);
+            canvas.renderAll();
+            saveState();
+        }
+    }
+
+    // Undo function
+    function undo() {
+        if (mods < state.length) {
+            canvas.clear().renderAll();
+            canvas.loadFromJSON(state[state.length - 1 - mods - 1]);
+            canvas.renderAll();
+            mods++;
+        }
+    }
+
+    // Redo function
+    function redo() {
+        if (mods > 0) {
+            canvas.clear().renderAll();
+            canvas.loadFromJSON(state[state.length - 1 - mods + 1]);
+            canvas.renderAll();
+            mods--;
+        }
+    }
+
+    // Save canvas state for undo/redo
+    function saveState() {
+        mods = 0;
+        state.push(JSON.stringify(canvas));
+    }
+
+    // Download the design and show a notification
+    function download() {
+        var link = document.createElement('a');
+        link.download = 'Girlfriend-Day-Design.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        // Show notification to share on social media
+        alert('Your design has been downloaded! Don\'t forget to share it on your social media.');
+    }
+
+    // Apply theme
+    function applyTheme() {
+        document.body.style.backgroundColor = document.getElementById('themeSelector').value;
+    }
+
+</script>
+
+</body>
+</html>
